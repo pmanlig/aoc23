@@ -1,6 +1,6 @@
 {
   "name": "aoc22",
-	"year": "2022",
+  "year": "2022",
   "version": "0.1.0",
   "private": true,
   "homepage": "https://pmanlig.github.io/aoc22",
@@ -11,7 +11,7 @@
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "4.0.0",
+    "react-scripts": "^5.0.1",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
