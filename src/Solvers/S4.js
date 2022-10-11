@@ -1,16 +1,8 @@
 // import React from 'react';
-import Solver from './Solver';
-import { md5 } from '../util/md5';
+import Solver from './Solvers';
 
 export class S4a extends Solver {
 	solve(input) {
-		if (input === "") {
-			this.setState({ solution: `No input yet` })
-		} else {
-			this.setState({ solution: `No solution yet` })
-		}
+		return { solution: `Ingen lösning än` };
 	}
-}
-
-export class S4b extends Solver {
 }

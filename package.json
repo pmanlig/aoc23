@@ -1,8 +1,9 @@
 {
-  "name": "aoc15",
+  "name": "aoc22",
+	"year": "2022",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://pmanlig.github.io/aoc15",
+  "homepage": "https://pmanlig.github.io/aoc22",
   "dependencies": {
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/react": "^11.1.0",

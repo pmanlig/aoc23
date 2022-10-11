@@ -1,14 +1,7 @@
-import Solver from './Solver';
+import Solver from './Solvers';
 
 export class S1a extends Solver {
 	solve(input) {
-		if (input === "") {
-			this.setState({ solution: `No input yet` })
-		} else {
-			this.setState({ solution: `No solution yet` })
-		}
+		return { solution: `Ingen lösning än` };
 	}
-}
-
-export class S1b extends Solver {
 }
