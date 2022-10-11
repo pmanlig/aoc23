@@ -1,5 +1,6 @@
-//import React from 'react';
+// import React from 'react';
 import Solver from './Solvers';
+// import { SearchState, PixelMap } from '../util';
 
 export class S5 extends Solver {
 	solve(input) {
