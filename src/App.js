@@ -1,14 +1,10 @@
 import './App.css';
 import React from 'react';
 import { HashRouter as Router, Switch, Route } from 'react-router-dom'
-import {
-	S1a, S2a, S3a, S4a, S5a, S6a, S7a, S8a, S9a, S10a, S11a, S12a, S13a, S14a, S15a, S16a, S17a,
-	S18a, S19a, S20a, S21a, S22a, S23a, S24a, S25a
-} from './Solvers';
+import { S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24, S25 } from './Solvers';
 
 let config = require('../package.json');
-let solvers = [S1a, S2a, S3a, S4a, S5a, S6a, S7a, S8a, S9a, S10a, S11a, S12a, S13a, S14a, S15a, S16a, S17a,
-	S18a, S19a, S20a, S21a, S22a, S23a, S24a, S25a];
+let solvers = [S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24, S25];
 
 //#region Private components
 

@@ -5,6 +5,11 @@ class BaseSolver extends React.Component {
 	idleCallback = null;
 	timeoutCallback = null;
 
+	constructor(props) {
+		super(props);
+		this.state = { solution: null, error: null }
+	}
+
 	backgroundProcess = () => {
 		if (this.solve) {
 			let result = this.solve(this.props.input);
@@ -24,6 +29,11 @@ class BaseSolver extends React.Component {
 		}
 	}
 
+	componentDidMount() {
+		if (this.setup) { this.setup(this.props.input); }
+		this.runBackground(this.backgroundProcess);
+	}
+
 	componentWillUnmount() {
 		if (null !== this.idleCallback) {
 			cancelIdleCallback(this.idleCallback);
@@ -34,23 +44,11 @@ class BaseSolver extends React.Component {
 			this.timeoutCallback = null;
 		}
 	}
-}
-
-export default class DefaultSolver extends BaseSolver {
-	constructor(props) {
-		super(props);
-		this.state = { solution: null, error: null }
-	}
-
-	componentDidMount() {
-		if (this.setup) { this.setup(this.props.input); }
-		this.runBackground(this.backgroundProcess);
-	}
 
 	solution = () => {
 		if (this.state.solution) { return this.state.solution.toString().split('\n').map((t, i) => <p key={i}>{t}</p>); }
 		if (!this.props.input) { return <p>Inget indata!</p> }
-		return <p>Ingen lösning än!</p>
+		return null;
 	}
 
 	render() {
@@ -59,82 +57,33 @@ export default class DefaultSolver extends BaseSolver {
 				{this.state.error ? <div>Error: {this.state.error.toString()}</div> : this.solution()}
 			</div>
 		} catch (e) {
-			return <div>Error: {e.toString()}</div>;
+			return <div className="solver">Error: {e.toString()}</div>;
 		}
 	}
 }
 
-export class AdvancedSolver extends React.Component {
-	state = {};
-	show = true;
-	runControls = false;
-	running = false;
-
-	async asyncSolve(input) {
-		try {
-			this.solve(input);
-		} catch (e) {
-			console.log(e);
-			this.setState({ error: e });
-		}
+export default class GraphSolver extends BaseSolver {
+	constructor(props) {
+		super(props);
+		this.canvas = React.createRef();
+		if (this.state === undefined) { this.state = {}; }
+		this.state.width = 1000;
+		this.state.height = 500;
 	}
 
-	componentDidMount() {
-		if (this.props.input !== null) {
-			this.run(false);
-		}
-	}
-
-	componentDidUpdate(prev) {
-		if (this.props.input !== prev.input && this.props.input !== null) {
-			this.run(false);
-		}
-	}
-
-	componentWillUnmount() {
-		if (null !== this.idleCallback) {
-			cancelIdleCallback(this.idleCallback);
-			this.idleCallback = null;
-		}
-		if (null !== this.timeoutCallback) {
-			clearTimeout(this.timeoutCallback);
-			this.timeoutCallback = null;
-		}
-	}
-
-	run(auto) {
-		try {
-			if (this.runControls) {
-				this.running = auto;
-				if (!this.running)
-					return;
-			}
-			if (this.props.input === null)
-				return;
-
-			this.setState({ error: null });
-			this.asyncSolve(this.props.input);
-		} catch (e) {
-			console.log(e);
-			this.setState({ error: e });
-		}
+	getCanvas() {
+		return this.canvas.current.getContext('2d');
 	}
 
 	render() {
+		let { width, height, error } = this.state;
 		try {
 			return <div className="solver">
-				<div className="control">
-					{this.props.header}
-					{this.runControls && <input type="button" value="Solve" onClick={e => this.run(true)} />}
-				</div>
-				<div className="result">
-					{this.customRender ? this.customRender() :
-						(this.state.error ? <div>Error: {this.state.error.toString()}</div> :
-							<this.solution />)}
-				</div>
-			</div>;
+				{error ? <div>Error: {error.toString()}</div> : this.solution()}
+				<canvas id="canvas" ref={this.canvas} width={width} height={height} />
+			</div>
 		} catch (e) {
-			return <div>Error: {e.toString()}</div>;
+			return <div className="solver">Error: {e.toString()}</div>;
 		}
 	}
 }

@@ -1,7 +1,7 @@
 //import React from 'react';
 import Solver from './Solvers';
 
-export class S14a extends Solver {
+export class S14 extends Solver {
 	solve(input) {
 		return { solution: `Ingen lösning än` };
 	}
