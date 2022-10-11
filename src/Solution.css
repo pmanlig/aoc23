@@ -1,0 +1,24 @@
+.solution {
+	height: calc(96vh - 50px);
+	display: flex;
+	flex-direction: column;
+}
+
+.solution .day h1 {
+	margin: 0;
+	flex-grow: 1;
+}
+
+.solution .day input {
+	display: block;
+	padding: 2px;
+}
+
+.solution .data {
+	flex-grow: 1;
+	display: flex;
+}
+
+.solution > .data > * {
+	flex-grow: 1;
+}

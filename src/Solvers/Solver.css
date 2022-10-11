@@ -1,0 +1,23 @@
+.solver {
+	display: flex;
+	flex-direction: column;
+	padding: 5px;
+	text-align: left;
+}
+
+.solver .control {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.solver .result {
+	margin-top: 1px;
+	border: 1px solid darkgray;
+	flex-grow: 1;
+	padding: 2px;
+}
+
+.solver .result p {
+	margin: 0;
+}
