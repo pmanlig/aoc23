@@ -69,6 +69,7 @@ export class S5 extends Solver {
 		function applyMaps2Ranges(ranges, maps) {
 			for (let i = 0; i < maps.length; i++) {
 				ranges = applyMap2Ranges(ranges, maps[i]);
+				// console.log(ranges.map(r => `[${r.from}-${r.to}]`).join(", "));
 			}
 			return ranges;
 		}
