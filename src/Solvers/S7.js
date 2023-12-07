@@ -35,7 +35,7 @@ export class S7 extends Solver {
 			let x = [];
 			let c = h.slice(0, 5);
 			let jokers = c.filter(y => y === 'J').length;
-			if (jokers === 5) { return 6; }
+			if (jokers > 3) { return 6; }
 			c = c.filter(y => y !== 'J');
 			while (c.length > 0) {
 				// eslint-disable-next-line
