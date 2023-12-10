@@ -26,3 +26,11 @@ export function drawFilledRect(ctx, x1, y1, x2, y2, style) {
 	if (style) ctx.fillStyle = style;
 	ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 }
+
+export function drawText(ctx, x, y, text, style, font) {
+	if (style) ctx.fillStyle = style;
+	if (style) ctx.strokeStyle = style;
+	if (font) ctx.font = font;
+	ctx.textBaseline = "top";
+	ctx.fillText(text, x, y);
+}

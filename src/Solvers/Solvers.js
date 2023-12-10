@@ -1,5 +1,5 @@
-import './Solvers.css';
 import React from 'react';
+import { Bitmap } from '../util';
 
 class BaseSolver extends React.Component {
 	idleCallback = null;
@@ -7,11 +7,11 @@ class BaseSolver extends React.Component {
 
 	constructor(props) {
 		super(props);
-		this.state = { solution: null, error: null }
+		this.state = { input: null, solution: null, error: null }
 	}
 
 	backgroundProcess = () => {
-		if (this.solve) {
+		if (this.solve && this.props.input) {
 			let result = this.solve(this.props.input);
 			if (result) {
 				this.setState(result);
@@ -29,12 +29,37 @@ class BaseSolver extends React.Component {
 		}
 	}
 
+	updateInput() {
+		if (this.state.input !== this.props.input) {
+			if (this.newInputTimeout) { clearTimeout(this.newInputTimeout); }
+			this.newInputTimeout = setTimeout(() => {
+				this.setState({ input: this.props.input, solution: null, error: null });
+				this.clearSolution();
+				this.initializeSolution();
+			}, 500);
+		}
+	}
+
 	componentDidMount() {
-		if (this.setup) { this.setup(this.props.input); }
-		this.runBackground(this.backgroundProcess);
+		this.updateInput();
 	}
 
 	componentWillUnmount() {
+		this.clearSolution();
+	}
+
+	componentDidUpdate() {
+		this.updateInput();
+	}
+
+	initializeSolution() {
+		if (this.setup && this.state.input) {
+			this.setup(this.state.input);
+		}
+		this.runBackground(this.backgroundProcess);
+	}
+
+	clearSolution() {
 		if (null !== this.idleCallback) {
 			cancelIdleCallback(this.idleCallback);
 			this.idleCallback = null;
@@ -65,22 +90,20 @@ class BaseSolver extends React.Component {
 export default class GraphSolver extends BaseSolver {
 	constructor(props) {
 		super(props);
-		this.canvas = React.createRef();
-		if (this.state === undefined) { this.state = {}; }
-		this.state.width = 1000;
-		this.state.height = 500;
+		this.canvasRef = React.createRef();
 	}
 
 	getCanvas() {
-		return this.canvas.current.getContext('2d');
+		return this.canvasRef.current.getContext('2d');
 	}
 
 	render() {
-		let { width, height, error } = this.state;
+		let { error, bmp, renderer } = this.state;
 		try {
 			return <div className="solver">
 				{error ? <div>Error: {error.toString()}</div> : this.solution()}
-				<canvas id="canvas" ref={this.canvas} width={width} height={height} />
+				{this.canvas && <canvas id="canvas" ref={this.canvasRef} style={{ width: this.canvas.width, height: this.canvas.height }} />}
+				{bmp && <Bitmap data={bmp} renderer={renderer} />}
 			</div>
 		} catch (e) {
 			return <div className="solver">Error: {e.toString()}</div>;
