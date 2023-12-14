@@ -79,6 +79,7 @@ export class S12 extends Solver {
 
 	solve() {
 		const calculated = [
+			{ num: 849, combinations: 5555798799 },
 			{ num: 863, combinations: 5337703878 },
 			{ num: 873, combinations: 3696345296 },
 			{ num: 915, combinations: 3112051430 }
