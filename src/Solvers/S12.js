@@ -42,17 +42,45 @@ function countArrangements(unknowns, numbers, u, n) {
 	return matchAndCountArrangements(unknowns, numbers, u, n);
 }
 
-function combinations(unknowns, numbers, n, x) {
-	return 1;
+function combinations(pattern, numbers, x, n) {
+	// console.log("combinations", pattern, numbers, x, n);
+	let sum = 0;
+	if (n >= numbers.length) {
+		for (let i = x; i < pattern.length; i++) {
+			if (pattern[i] === '#') { return 0; }
+		}
+		return 1;
+	}
+	if (n === numbers.length - 1 && x + numbers[n] === pattern.length) { return 1; }
+	if ((x + numbers[n]) >= pattern.length) { return 0; }
+	if (pattern[x + numbers[n]] === '?') {
+		sum += combinations(pattern, numbers, x + numbers[n] + 1, n + 1);
+	}
+	if (pattern[x] === '?') {
+		sum += combinations(pattern, numbers, x + 1, n);
+	}
+	return sum;
 }
 
+let cache = {}
+
 // eslint-disable-next-line
-function countArrangements2(unknowns, numbers, u, n, f) {
+function countArrangements2(unknowns, numbers, u, n) {
+	// console.log("countArrangements", unknowns, numbers, u, n);
+	if (u === unknowns.length) {
+		return n === numbers.length ? 1 : 0;
+	}
 	let next = unknowns[u++];
 	let x = 0, m = 0, sum = 0;
-	while (m < next.length && (n + x) < numbers.length) { m += numbers[n + x++] + 1; } // Add length of next number + separator (.)
-	for (; x > 0; x--) {
-		m = combinations(next, numbers, n, x);
+	while ((n + x) < numbers.length && (m + numbers[n + x]) <= next.length) { m += numbers[n + x++] + 1; } // Add length of next number + separator (.)
+	for (; x >= 0; x--) {
+		if (!cache[next]) { cache[next] = {} }
+		let nums = numbers.slice(n, n + x);
+		let key = nums.join(',');
+		if (cache[next][key] === undefined) {
+			cache[next][key] = combinations(next, numbers.slice(n, n + x), 0, 0);
+		}
+		let m = cache[next][key];
 		if (m > 0) {
 			sum += m * countArrangements2(unknowns, numbers, u, n + x);
 		}
@@ -60,10 +88,48 @@ function countArrangements2(unknowns, numbers, u, n, f) {
 	return sum;
 }
 
+function calcPositions(mask, numbers) {
+	let p = {};
+	numbers.forEach(n => {
+		if (p[n] === undefined) {
+			let pos = [];
+			let max = mask.length - n + 1;
+			for (let i = 0; i < max; i++) {
+				let x = 0;
+				while (x < n && mask[i + x] !== '.') { x++; }
+				if (x === n && (i + n === max || mask[i + n] !== '#')) { pos.push(i); }
+			}
+			p[n] = pos;
+		}
+	});
+	return p;
+}
+
+function countArrangementsByPositions(mask, positions, numbers, i, n) {
+	let curr = numbers[i++];
+	let pos = positions[curr];
+	if (i === numbers.length) {
+		return pos.filter(x => x > n).length;
+	}
+	let max = mask.length - (numbers.slice(i).reduce((a, b) => a + b) + numbers.length - i - 1);
+	pos = pos.filter(x => x > n).filter(x => x < max)
+		.map(x => countArrangementsByPositions(mask, positions, numbers, i, n + curr)).reduce((a, b) => a + b);
+}
+
+// eslint-disable-next-line
+function count2(s) {
+	let mask = s.unknowns.join('');
+	let positions = calcPositions(mask, s.numbers);
+	console.log("count2", mask, positions);
+	return countArrangementsByPositions(mask, positions, s.numbers, 0, 0);
+}
+
+// eslint-disable-next-line
 function count(s) {
-	// let unknowns = unknowns.join('').split('.').filter(s => s !== "");
-	// return countArrangements2(unknowns, s.numbers, 0, 0, []);
-	return countArrangements(s.unknowns, s.numbers, 0, 0);
+	let unknowns = s.unknowns.join('').split('.').filter(s => s !== "");
+	// console.log(s.unknowns.join(''), unknowns);
+	return countArrangements2(unknowns, s.numbers, 0, 0, []);
+	// return countArrangements(s.unknowns, s.numbers, 0, 0);
 }
 
 export class S12 extends Solver {
@@ -71,37 +137,35 @@ export class S12 extends Solver {
 		// input = "???.### 1,1,3\n.??..??...?##. 1,1,3\n?#?#?#?#?#?#?#? 1,3,1,6\n????.#...#... 4,1,1\n????.######..#####. 1,6,5\n?###???????? 3,2,1";
 		input = input.split('\n').map(l => parseSprings(l));
 
-		this.sol1 = input.map(s => count(s)).reduce((a, b) => a + b);
+		this.sol1 = input.map(s => countArrangements(s.unknowns, s.numbers, 0, 0)).reduce((a, b) => a + b);
 		this.sol2 = 0;
 		this.remaining = input;
+		this.calc = [124, 233, 460, 467, 489/*, 562, 967*/];
+		// while (this.remaining.length > 35) { this.remaining.pop(); }
 		this.setState({ solution: `Total # of arrangements: ${this.sol1}\nExtended # of arrangements: ${this.sol2}` });
 	}
 
 	solve() {
-		const calculated = [
-			{ num: 849, combinations: 5555798799 },
-			{ num: 863, combinations: 5337703878 },
-			{ num: 873, combinations: 3696345296 },
-			{ num: 915, combinations: 3112051430 }
-		];
-
+		// eslint-disable-next-line
 		if (this.remaining.length === 0) {
 			console.log("Terminated");
 			return { solution: `Total # of arrangements: ${this.sol1}\nExtended # of arrangements: ${this.sol2}` };
 		} else {
-			while (this.remaining.length > calculated[0].num) {
-				this.remaining.pop();
-				this.sol2 = calculated[0].combinations;
-			}
-			let s = this.remaining.pop();
-			s = unfold(s);
-			this.sol2 += count(s);
+			// let s = this.remaining.pop();
+			let x = this.calc.pop();
+			let s = this.remaining[x];
+			console.log(s);
+			let n = count(unfold(s));
+			console.log("Calc", x, n);
+			this.sol2 += n;
+			let next = this.remaining.length > 0 ? this.remaining[this.remaining.length - 1] : { unknowns: [""], numbers: [] }
 			this.setState({
 				solution:
 					`Total # of arrangements: ${this.sol1}\n\
-				Extended # of arrangements: ${this.sol2}\n\
-				Remaining: ${this.remaining.length}\n\
-				Current: ${s.unknowns.join('')}`
+					Extended # of arrangements: ${this.sol2}\n\
+					Remaining: ${x}\n\
+					Last: ${s.unknowns.join('')} [${s.numbers.join(',')}]\n\
+					Next: ${next.unknowns.join('')} [${next.numbers.join(',')}]`
 			});
 		}
 	}
