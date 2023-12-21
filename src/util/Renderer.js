@@ -24,3 +24,10 @@ export class Renderer {
 		}
 	}
 }
+
+export class BitmapRenderer extends Renderer {
+	constructor(styles, map, pixelSize) {
+		super(styles, map[0].length, map.length, pixelSize);
+	}
+}
+

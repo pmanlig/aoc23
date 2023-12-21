@@ -142,10 +142,10 @@ class Rectangle {
 	}
 
 	overlap(seg) {
-		return (this.y0 < seg.fromY && this.y1 > seg.fromY) ||
-			(this.y0 < seg.toY && this.y1 > seg.toY) ||
-			(this.y0 > seg.fromY && this.y0 < seg.toY) ||
-			(this.y1 > seg.fromY && this.y1 < seg.toY);
+		return (this.y0 <= seg.fromY && this.y1 > seg.fromY) ||
+			(this.y0 < seg.toY && this.y1 >= seg.toY) ||
+			(this.y0 >= seg.fromY && this.y0 < seg.toY) ||
+			(this.y1 > seg.fromY && this.y1 <= seg.toY);
 	}
 
 	area() {
@@ -157,7 +157,7 @@ function trueCount(input) {
 	adjustInput(input);
 
 	let verticals = input.filter(a => a.fromX === a.toX).sort((a, b) => a.fromX - b.fromX);
-	console.log("Vertical lines", verticals);
+	// console.log("Vertical lines", verticals);
 	// let horizontals = input.filter(a => a.fromY === a.toY).sort((a, b) => a.fromY - b.fromY);
 	let partials = [];
 	let hole = [];
@@ -222,6 +222,8 @@ function trueCount(input) {
 			console.log("hole", [...hole]);
 		}
 	}
+
+	if (partials.length > 0) { console.log("ERROR - partials", partials); }
 
 	return hole.map(h => h.area()).reduce((a, b) => a + b);;
 }
