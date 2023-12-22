@@ -12,8 +12,6 @@ class DigRenderer extends Renderer {
 	}
 }
 
-const debug_vertical = 59;
-
 class TrueRenderer extends Renderer {
 	constructor(width, height, lines, holes) {
 		super(null, width, height, 1);
@@ -25,42 +23,24 @@ class TrueRenderer extends Renderer {
 		this.scaleHeight = Math.max(...lines.map(l => l.toY)) - this.y;
 	}
 
+	translateX(x) { return ((x - this.x) / this.scaleWidth) * this.width; }
+	translateY(y) { return this.height - ((y - this.y) / this.scaleHeight) * this.height; }
+
 	draw(ctx) {
 		ctx.strokeStyle = "#CFFFCF";
 		ctx.fillStyle = "#CFFFCF";
 		ctx.lineWidth = 1;
 		this.holes.hole.forEach(h => {
-			drawFilledRect(ctx,
-				((h.x0 - this.x) / this.scaleWidth) * this.width,
-				((h.y0 - this.y) / this.scaleHeight) * this.height,
-				((h.x1 - this.x) / this.scaleWidth) * this.width,
-				((h.y1 - this.y) / this.scaleHeight) * this.height);
-		});
-		ctx.strokeStyle = "#CFCFCF";
-		ctx.fillStyle = "#CFCFCF";
-		this.holes.partials.forEach(h => {
-			drawFilledRect(ctx,
-				((h.x0 - this.x) / this.scaleWidth) * this.width,
-				((h.y0 - this.y) / this.scaleHeight) * this.height,
-				this.width,
-				((h.y1 - this.y) / this.scaleHeight) * this.height);
+			drawFilledRect(ctx, this.translateX(h.x0), this.translateY(h.y0), this.translateX(h.x1), this.translateY(h.y1));
 		});
 		ctx.strokeStyle = "#FF7F7F";
 		this.lines.forEach(l => {
-			drawLine(ctx,
-				((l.fromX - this.x) / this.scaleWidth) * this.width,
-				((l.fromY - this.y) / this.scaleHeight) * this.height,
-				((l.toX - this.x) / this.scaleWidth) * this.width,
-				((l.toY - this.y) / this.scaleHeight) * this.height);
+			drawLine(ctx, this.translateX(l.fromX), this.translateY(l.fromY), this.translateX(l.toX), this.translateY(l.toY));
 		});
-		let verticals = this.lines.filter(a => a.fromX === a.toX).sort((a, b) => a.fromX - b.fromX);
-		ctx.strokeStyle = "#0F0FFF";
-		verticals.slice(debug_vertical - 1, debug_vertical).forEach(l => {
-			drawLine(ctx,
-				((l.fromX - this.x) / this.scaleWidth) * this.width,
-				((l.fromY - this.y) / this.scaleHeight) * this.height,
-				((l.toX - this.x) / this.scaleWidth) * this.width,
-				((l.toY - this.y) / this.scaleHeight) * this.height);
+		ctx.strokeStyle = "#000000";
+		ctx.fillStyle = "#000000";
+		this.holes.partials.forEach(h => {
+			drawFilledRect(ctx, this.translateX(h.x0), this.translateY(h.y0), this.width + 1, this.translateY(h.y1) + 1);
 		});
 	}
 }
@@ -197,11 +177,11 @@ class Rectangle {
 		this.y1 = y1;
 	}
 
-	overlap(seg) {
-		return (this.y0 <= seg.fromY && this.y1 > seg.fromY) ||
-			(this.y0 < seg.toY && this.y1 >= seg.toY) ||
-			(this.y0 >= seg.fromY && this.y0 < seg.toY) ||
-			(this.y1 > seg.fromY && this.y1 <= seg.toY);
+	overlap(other) {
+		return (this.y0 <= other.y0 && this.y1 >= other.y0) ||
+			(this.y0 <= other.y1 && this.y1 >= other.y1) ||
+			(this.y0 >= other.y0 && this.y0 <= other.y1) ||
+			(this.y1 >= other.y0 && this.y1 <= other.y1);
 	}
 
 	area() {
@@ -210,6 +190,7 @@ class Rectangle {
 }
 
 function exclude(n, p) {
+	if (p.y0 > n.y1 || p.y1 < n.y0) { return [n]; }
 	if (p.y1 >= n.y1 && p.y0 <= n.y0) { return []; }
 	let res = [];
 	if (p.y1 >= n.y0 && p.y1 < n.y1) { res.push(new Rectangle(n.x0, undefined, p.y1 + 1, n.y1)); }
@@ -217,32 +198,41 @@ function exclude(n, p) {
 	return res;
 }
 
-function newPartials(line, partials) {
-	let res = [new Rectangle(line.fromX, undefined, line.fromY, line.toY)];
-	partials.forEach(p => {
+function excludeFrom(line, partials) {
+	return partials.some(p => p.y0 < line.fromY && p.y1 >= line.fromY);
+}
+
+function excludeTo(line, partials) {
+	return partials.some(p => p.y0 <= line.toY && p.y1 > line.toY);
+}
+
+function newPartials(fromX, fromY, toY, partials) {
+	let part = new Rectangle(fromX, undefined, fromY, toY);
+	let res = [part];
+	partials.filter(x => x.overlap(part)).forEach(p => {
 		res = res.flatMap(n => exclude(n, p));
 	});
 	return res;
 }
 
-function close(line, p) {
-	if (line.fromY >= p.y1 || line.toY <= p.y0) { return [p]; }
-	p.x1 = line.fromX;
+function close(x, fromY, toY, p) {
+	if (fromY > p.y1 || toY < p.y0) { return [p]; }
+	p.x1 = x;
 	let res = [p];
-	if (line.fromY > p.y0) {
-		res.push(new Rectangle(p.x0, undefined, p.y0, line.fromY + 1));
-		p.y0 = line.fromY + 1;
+	if (fromY > p.y0) {
+		res.push(new Rectangle(p.x0, undefined, p.y0, fromY - 1));
+		p.y0 = fromY;
 	}
-	if (line.toY < p.y1) {
-		res.push(new Rectangle(p.x0, undefined, line.toY - 1, p.y1));
-		p.y1 = line.toY - 1;
+	if (toY < p.y1) {
+		res.push(new Rectangle(p.x0, undefined, toY + 1, p.y1));
+		p.y1 = toY;
 	}
 
 	return res;
 }
 
-function closePartials(line, partials) {
-	return partials.flatMap(p => close(line, p));
+function closePartials(x, fromY, toY, partials) {
+	return partials.flatMap(p => close(x, fromY, toY, p));
 }
 
 function trueCount(input) {
@@ -251,82 +241,29 @@ function trueCount(input) {
 	adjustInput(input);
 
 	let verticals = input.filter(a => a.fromX === a.toX).sort((a, b) => a.fromX - b.fromX);
+	let horizontals = input.filter(a => a.fromY === a.toY).sort((a, b) => a.fromY - b.fromY);
 	// console.log("Vertical lines", verticals);
-	// let horizontals = input.filter(a => a.fromY === a.toY).sort((a, b) => a.fromY - b.fromY);
 	let partials = [];
 	let hole = [];
 
-	let maxLine = debug_vertical;
-
-	for (let v = 0; v < verticals.length && maxLine-- > 0; v++) {
-		let _debug = maxLine === 0;
+	for (let v = 0; v < verticals.length; v++) {
+		let _debug = false;
 		if (_debug) console.log("Debugging segment #", v);
 		let s = verticals[v];
 		if (_debug) console.log("Vertical", s);
-		let overlaps = partials.filter(x => x.overlap(s));
-		if (_debug) console.log("Overlaps", overlaps);
-		let newPart = newPartials(s, partials.filter(x => x.overlap(s)));
-		if (_debug) console.log("New partials", newPart);
-		partials = closePartials(s, partials).concat(newPart);
+		let fromY = s.fromY + (excludeFrom(s, partials, horizontals) ? 1 : 0);
+		let toY = s.toY - (excludeTo(s, partials, horizontals) ? 1 : 0);
+		if (_debug) console.log(excludeFrom(s, partials, horizontals) ? "Exclude FROM" : "Do not exclude FROM");
+		if (_debug) console.log(excludeTo(s, partials, horizontals) ? "Exclude TO" : "Do not exclude TO");
+		let newPart = newPartials(s.fromX, fromY, toY, partials, horizontals);
+		if (_debug) console.log("New partials", newPart.map(n => ({ ...n })));
+		partials = closePartials(s.fromX, fromY, toY, partials).concat(newPart);
 		hole = hole.concat(partials.filter(p => p.x1 !== undefined));
 		partials = partials.filter(p => p.x1 === undefined);
-		// if (maxLine === 0) { partials = newPart; }
-		/*
-		if (_debug) console.log("New partials", newPart);
-		partials = partials.filter(x => !x.overlap(s));
-		// for (let w = partials.find(x => x.overlap(s)); w !== undefined; w = partials.find(x => x.overlap(s)))
-		if (_debug) console.log("Overlaps", [...overlaps]);
-		let excludes = [];
-		while (overlaps.length > 0) {
-			let x = overlaps.pop();
-			if (s.fromX > x.x0) {
-				let common = new Rectangle(x.x0, s.fromX,
-					s.fromY === x.y0 ? x.y0 : Math.max(s.fromY + 1, x.y0),
-					s.toY === x.y1 ? x.y1 : Math.min(s.toY - 1, x.y1));
-				if (_debug) console.log("matching rectangle", common);
-				if (isNaN(common.y1)) {
-					if (_debug) console.log("NaN found", s, x);
-				}
-				hole.push(common);
-				excludes.push(common);
-				if (common.y1 < x.y1) {
-					if (_debug) console.log("Adding partial #1", common, x);
-					partials.push(new Rectangle(x.x0, undefined, common.y1 + 1, x.y1));
-				}
-				if (common.y0 > x.y0) {
-					if (_debug) console.log("Adding partial #2");
-					partials.push(new Rectangle(x.x0, undefined, x.y0, common.y0 - 1));
-				}
-			}
-		}
-		excludes = excludes.concat(partials).sort((a, b) => a.y0 - b.y0);
-		if (excludes.length > 0) {
-			if (_debug) console.log("Excluding", [...excludes]);
-			if (s.fromY < excludes[0].y0) {
-				if (_debug) console.log("Adding partial #3");
-				partials.push(new Rectangle(s.fromX, undefined, s.fromY, excludes[0].y0 - 1));
-			}
-			if (s.toY > excludes[excludes.length - 1].y1) {
-				if (_debug) console.log("Adding partial #4", s, excludes[excludes.length - 1]);
-				partials.push(new Rectangle(s.fromX, undefined, excludes[excludes.length - 1].y1 + 1, s.toY));
-			}
-			for (let n = 1; n < excludes.length; n++) {
-				let n0 = excludes[n - 1];
-				let n1 = excludes[n];
-				if (n0.y1 < n.y0 - 1) {
-					if (_debug) console.log("Adding partial #5");
-					partials.push(new Rectangle(s.fromX, undefined, n0.y1 + 1, n1.y0 - 1));
-				}
-			}
-		} else {
-			if (_debug) console.log("Adding partial #6");
-			partials.push(new Rectangle(s.fromX, undefined, s.fromY, s.toY));
-		}
-		*/
 		if (_debug) {
 			console.log(`Processed vertical y0: ${s.fromY} y1: ${s.toY} x0: ${s.fromX}`);
-			console.log("partials", [...partials]);
-			console.log("hole", [...hole]);
+			console.log("partials", partials.map(p => ({ ...p })));
+			console.log("hole", hole.map(h => ({ ...h })));
 		}
 	}
 
@@ -344,8 +281,9 @@ export class S18 extends Solver {
 		let testBmp = input2bmp(test);
 		finalize(testBmp);
 		console.log(count(testBmp) === 62 ? "Test passed" : "Test FAILED");
-		// let testVolume = trueCount(test).hole.map(h => h.area()).sum();
-		// console.log(testVolume, testVolume - 952408144115, testVolume === 952408144115 ? "Test passed" : "Test FAILED");
+		let testHoles = trueCount(test);
+		let test2 = testHoles.hole.map(h => h.area()).sum();
+		console.log(test2, test2 - 952408144115, test2 === 952408144115 ? "Test passed" : "Test FAILED");
 
 		input = parse(input);
 		connect(input);
@@ -354,6 +292,7 @@ export class S18 extends Solver {
 		let sol1 = count(bmp);
 		let holes = trueCount(input);
 		let sol2 = holes.hole.map(h => h.area()).sum();
+
 		// eslint-disable-next-line
 		let digRenderer = new DigRenderer(bmp);
 		let trueRenderer = new TrueRenderer(800, 600, input, holes);
