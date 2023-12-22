@@ -1,11 +1,67 @@
 // import React from 'react';
-import { Renderer } from '../util';
+import { Renderer, drawFilledRect, drawLine } from '../util';
 import Solver from './Solvers';
 // import { SearchState, PixelMap } from '../util';
+
+// eslint-disable-next-line
+Array.prototype.sum = function () { return this.reduce((a, b) => a + b, 0); }
 
 class DigRenderer extends Renderer {
 	constructor(map) {
 		super(x => x === 0 ? "#000000" : x, map[0].length, map.length, Math.max(1, Math.floor(600 / map.length)));
+	}
+}
+
+const debug_vertical = 59;
+
+class TrueRenderer extends Renderer {
+	constructor(width, height, lines, holes) {
+		super(null, width, height, 1);
+		this.lines = lines;
+		this.holes = holes;
+		this.x = Math.min(...lines.map(l => l.fromX));
+		this.scaleWidth = Math.max(...lines.map(l => l.toX)) - this.x;
+		this.y = Math.min(...lines.map(l => l.fromY));
+		this.scaleHeight = Math.max(...lines.map(l => l.toY)) - this.y;
+	}
+
+	draw(ctx) {
+		ctx.strokeStyle = "#CFFFCF";
+		ctx.fillStyle = "#CFFFCF";
+		ctx.lineWidth = 1;
+		this.holes.hole.forEach(h => {
+			drawFilledRect(ctx,
+				((h.x0 - this.x) / this.scaleWidth) * this.width,
+				((h.y0 - this.y) / this.scaleHeight) * this.height,
+				((h.x1 - this.x) / this.scaleWidth) * this.width,
+				((h.y1 - this.y) / this.scaleHeight) * this.height);
+		});
+		ctx.strokeStyle = "#CFCFCF";
+		ctx.fillStyle = "#CFCFCF";
+		this.holes.partials.forEach(h => {
+			drawFilledRect(ctx,
+				((h.x0 - this.x) / this.scaleWidth) * this.width,
+				((h.y0 - this.y) / this.scaleHeight) * this.height,
+				this.width,
+				((h.y1 - this.y) / this.scaleHeight) * this.height);
+		});
+		ctx.strokeStyle = "#FF7F7F";
+		this.lines.forEach(l => {
+			drawLine(ctx,
+				((l.fromX - this.x) / this.scaleWidth) * this.width,
+				((l.fromY - this.y) / this.scaleHeight) * this.height,
+				((l.toX - this.x) / this.scaleWidth) * this.width,
+				((l.toY - this.y) / this.scaleHeight) * this.height);
+		});
+		let verticals = this.lines.filter(a => a.fromX === a.toX).sort((a, b) => a.fromX - b.fromX);
+		ctx.strokeStyle = "#0F0FFF";
+		verticals.slice(debug_vertical - 1, debug_vertical).forEach(l => {
+			drawLine(ctx,
+				((l.fromX - this.x) / this.scaleWidth) * this.width,
+				((l.fromY - this.y) / this.scaleHeight) * this.height,
+				((l.toX - this.x) / this.scaleWidth) * this.width,
+				((l.toY - this.y) / this.scaleHeight) * this.height);
+		});
 	}
 }
 
@@ -153,7 +209,45 @@ class Rectangle {
 	}
 }
 
+function exclude(n, p) {
+	if (p.y1 >= n.y1 && p.y0 <= n.y0) { return []; }
+	let res = [];
+	if (p.y1 >= n.y0 && p.y1 < n.y1) { res.push(new Rectangle(n.x0, undefined, p.y1 + 1, n.y1)); }
+	if (p.y0 > n.y0 && p.y0 <= n.y1) { res.push(new Rectangle(n.x0, undefined, n.y0, p.y0 - 1)); }
+	return res;
+}
+
+function newPartials(line, partials) {
+	let res = [new Rectangle(line.fromX, undefined, line.fromY, line.toY)];
+	partials.forEach(p => {
+		res = res.flatMap(n => exclude(n, p));
+	});
+	return res;
+}
+
+function close(line, p) {
+	if (line.fromY >= p.y1 || line.toY <= p.y0) { return [p]; }
+	p.x1 = line.fromX;
+	let res = [p];
+	if (line.fromY > p.y0) {
+		res.push(new Rectangle(p.x0, undefined, p.y0, line.fromY + 1));
+		p.y0 = line.fromY + 1;
+	}
+	if (line.toY < p.y1) {
+		res.push(new Rectangle(p.x0, undefined, line.toY - 1, p.y1));
+		p.y1 = line.toY - 1;
+	}
+
+	return res;
+}
+
+function closePartials(line, partials) {
+	return partials.flatMap(p => close(line, p));
+}
+
 function trueCount(input) {
+	// return trueCount2(input);
+	// eslint-disable-next-line
 	adjustInput(input);
 
 	let verticals = input.filter(a => a.fromX === a.toX).sort((a, b) => a.fromX - b.fromX);
@@ -162,17 +256,29 @@ function trueCount(input) {
 	let partials = [];
 	let hole = [];
 
-	for (let v = 0; v < verticals.length; v++) {
-		let _debug = false;
+	let maxLine = debug_vertical;
+
+	for (let v = 0; v < verticals.length && maxLine-- > 0; v++) {
+		let _debug = maxLine === 0;
 		if (_debug) console.log("Debugging segment #", v);
 		let s = verticals[v];
-		let w = partials.filter(x => x.overlap(s));
+		if (_debug) console.log("Vertical", s);
+		let overlaps = partials.filter(x => x.overlap(s));
+		if (_debug) console.log("Overlaps", overlaps);
+		let newPart = newPartials(s, partials.filter(x => x.overlap(s)));
+		if (_debug) console.log("New partials", newPart);
+		partials = closePartials(s, partials).concat(newPart);
+		hole = hole.concat(partials.filter(p => p.x1 !== undefined));
+		partials = partials.filter(p => p.x1 === undefined);
+		// if (maxLine === 0) { partials = newPart; }
+		/*
+		if (_debug) console.log("New partials", newPart);
 		partials = partials.filter(x => !x.overlap(s));
 		// for (let w = partials.find(x => x.overlap(s)); w !== undefined; w = partials.find(x => x.overlap(s)))
-		if (_debug) console.log("Overlaps", [...w]);
+		if (_debug) console.log("Overlaps", [...overlaps]);
 		let excludes = [];
-		while (w.length > 0) {
-			let x = w.pop();
+		while (overlaps.length > 0) {
+			let x = overlaps.pop();
 			if (s.fromX > x.x0) {
 				let common = new Rectangle(x.x0, s.fromX,
 					s.fromY === x.y0 ? x.y0 : Math.max(s.fromY + 1, x.y0),
@@ -216,6 +322,7 @@ function trueCount(input) {
 			if (_debug) console.log("Adding partial #6");
 			partials.push(new Rectangle(s.fromX, undefined, s.fromY, s.toY));
 		}
+		*/
 		if (_debug) {
 			console.log(`Processed vertical y0: ${s.fromY} y1: ${s.toY} x0: ${s.fromX}`);
 			console.log("partials", [...partials]);
@@ -225,7 +332,8 @@ function trueCount(input) {
 
 	if (partials.length > 0) { console.log("ERROR - partials", partials); }
 
-	return hole.map(h => h.area()).reduce((a, b) => a + b);;
+	// return hole.map(h => h.area()).sum();
+	return { hole: hole, partials: partials };
 }
 
 export class S18 extends Solver {
@@ -236,16 +344,24 @@ export class S18 extends Solver {
 		let testBmp = input2bmp(test);
 		finalize(testBmp);
 		console.log(count(testBmp) === 62 ? "Test passed" : "Test FAILED");
-		let testVolume = trueCount(test);
-		console.log(testVolume, testVolume - 952408144115, testVolume === 952408144115 ? "Test passed" : "Test FAILED");
+		// let testVolume = trueCount(test).hole.map(h => h.area()).sum();
+		// console.log(testVolume, testVolume - 952408144115, testVolume === 952408144115 ? "Test passed" : "Test FAILED");
 
 		input = parse(input);
 		connect(input);
 		let bmp = input2bmp(input);
 		finalize(bmp);
 		let sol1 = count(bmp);
-		let sol2 = trueCount(input);
+		let holes = trueCount(input);
+		let sol2 = holes.hole.map(h => h.area()).sum();
+		// eslint-disable-next-line
+		let digRenderer = new DigRenderer(bmp);
+		let trueRenderer = new TrueRenderer(800, 600, input, holes);
 
-		return { solution: `Trench will hold ${sol1} cubic meters of lava\nWhen instructions are corrected, the trench now holds ${sol2} cubic meters of lava`, bmp: bmp, renderer: new DigRenderer(bmp) };
+		return {
+			solution: `Trench will hold ${sol1} cubic meters of lava\n\
+			When instructions are corrected, the trench now holds ${sol2} cubic meters of lava`,
+			bmp: bmp, renderer: trueRenderer
+		};
 	}
 }
