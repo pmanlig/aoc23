@@ -1,6 +1,7 @@
-// import React from 'react';
 import Solver from './Solvers';
-// import { SearchState, PixelMap } from '../util';
+
+// eslint-disable-next-line
+Array.prototype.sum = function () { return this.reduce((a, b) => a + b, 0); }
 
 function parseSprings(l) {
 	l = l.split(' ');
@@ -62,7 +63,7 @@ function combinations(pattern, numbers, x, n) {
 	return sum;
 }
 
-let cache = {}
+let cache = {};
 
 // eslint-disable-next-line
 function countArrangements2(unknowns, numbers, u, n) {
@@ -71,76 +72,121 @@ function countArrangements2(unknowns, numbers, u, n) {
 		return n === numbers.length ? 1 : 0;
 	}
 	let next = unknowns[u++];
-	let x = 0, m = 0, sum = 0;
-	while ((n + x) < numbers.length && (m + numbers[n + x]) <= next.length) { m += numbers[n + x++] + 1; } // Add length of next number + separator (.)
-	for (; x >= 0; x--) {
+	let x = n, m = 0, sum = 0;
+	while (x < numbers.length && m <= next.length) { m += numbers[x++] + 1; } // Add length of next number + separator (.)
+	for (; x >= n; x--) {
 		if (!cache[next]) { cache[next] = {} }
-		let nums = numbers.slice(n, n + x);
+		let c = cache[next];
+		let nums = numbers.slice(n, x);
 		let key = nums.join(',');
-		if (cache[next][key] === undefined) {
-			cache[next][key] = combinations(next, numbers.slice(n, n + x), 0, 0);
-		}
-		let m = cache[next][key];
-		if (m > 0) {
-			sum += m * countArrangements2(unknowns, numbers, u, n + x);
+		if (c[key] === undefined) { c[key] = combinations(next, numbers.slice(n, x), 0, 0); }
+		if (c[key] > 0) { sum += c[key] * countArrangements2(unknowns, numbers, u, x); }
+	}
+	return sum;
+}
+
+// eslint-disable-next-line
+function countArrangements4(unknowns, numbers) {
+	if (numbers.length === 0) { return 1; }
+	let mask = unknowns.indexOf('?');
+	if (mask === -1) { return 0; }
+	let maskEnd = unknowns.lastIndexOf('?');
+	unknowns = unknowns.substring(mask, maskEnd + 1);
+	let dot = unknowns.indexOf('.');
+	if (dot !== -1 && dot < numbers[0]) { return countArrangements4(unknowns.substring(dot)); }
+	if (unknowns.length < numbers[0]) { return 0; }
+
+	return countArrangements4(unknowns.substring(numbers[0] + 1), numbers.slice(1)) +
+		countArrangements4(unknowns.substring(1), numbers);
+}
+
+function countArrangements6(mask, numbers) {
+	// console.log(`Counting "${mask}", [${numbers.join(',')}]`);
+	if (numbers.length === 0) { return 1; }
+	if (!cache[mask.length]) { cache[mask.length] = {}; }
+	let k = numbers.join(',');
+	if (cache[mask.length][k]) { return cache[mask.length][k]; }
+	let minLength = numbers.sum() + numbers.length - 1;
+	let variability = mask.length - minLength;
+	if (variability < 0) {
+		cache[mask.length][k] = 0;
+	} else if (variability === 0) {
+		cache[mask.length][k] = 1;
+	} else {
+		let sum = 0;
+		sum += countArrangements6(mask.substring(1), numbers);
+		sum += countArrangements6(mask.substring(numbers[0] + 1), numbers.slice(1));
+		cache[mask.length][k] = sum;
+	}
+	return cache[mask.length][k];
+}
+
+// eslint-disable-next-line
+function countArrangements5(masks, numbers) {
+	if (masks.length === 0) { return numbers.length === 0 ? 1 : 0; }
+	let sum = 0;
+	console.log(`Count5: [${masks[0]}], [${numbers.join(',')}]`);
+	for (let i = 0; true; i++) {
+		let x = countArrangements6(masks[0], numbers.slice(0, i));
+		if (x === 0) { break; }
+		sum += x;
+		if (masks.length > 0)
+			sum += countArrangements5(masks.slice(1), numbers.slice(i));
+	}
+	return sum;
+}
+
+function countArrangements3(unknowns, numbers) {
+	// console.log(`Counting "${unknowns}", [${numbers.join(',')}]`);
+	let x = unknowns.indexOf('#');
+	if (numbers.length === 0) { return x === -1 ? 1 : 0; }
+	if (x === -1) { return countArrangements2(unknowns.split('.').filter(s => s !== ""), numbers, 0, 0, []); }
+	let sum = 0;
+	for (let i = 0; i < numbers.length; i++) {
+		for (let j = 1 - numbers[i]; j < 1; j++) {
+			let start = x + j;
+			if (start < 0) { continue; }
+			if (start === 1 && unknowns[0] === '#') { continue; }
+			let end = x + j + numbers[i]
+			if (end > unknowns.length) { continue; }
+			if (end < unknowns.length && unknowns[end] === '#') { continue; }
+			if (unknowns.substring(start, end).indexOf('.') !== -1) { continue; }
+			let before = unknowns.substring(0, start - 1);
+			let after = unknowns.substring(end + 1);
+			before = before === "" ? 1 : countArrangements3(before, numbers.slice(0, i));
+			after = after === "" ? 1 : countArrangements3(after, numbers.slice(i + 1));
+			sum += before * after;
 		}
 	}
 	return sum;
 }
 
-function calcPositions(mask, numbers) {
-	let p = {};
-	numbers.forEach(n => {
-		if (p[n] === undefined) {
-			let pos = [];
-			let max = mask.length - n + 1;
-			for (let i = 0; i < max; i++) {
-				let x = 0;
-				while (x < n && mask[i + x] !== '.') { x++; }
-				if (x === n && (i + n === max || mask[i + n] !== '#')) { pos.push(i); }
-			}
-			p[n] = pos;
-		}
-	});
-	return p;
-}
-
-function countArrangementsByPositions(mask, positions, numbers, i, n) {
-	let curr = numbers[i++];
-	let pos = positions[curr];
-	if (i === numbers.length) {
-		return pos.filter(x => x > n).length;
-	}
-	let max = mask.length - (numbers.slice(i).reduce((a, b) => a + b) + numbers.length - i - 1);
-	pos = pos.filter(x => x > n).filter(x => x < max)
-		.map(x => countArrangementsByPositions(mask, positions, numbers, i, n + curr)).reduce((a, b) => a + b);
-}
-
 // eslint-disable-next-line
 function count2(s) {
-	let mask = s.unknowns.join('');
-	let positions = calcPositions(mask, s.numbers);
-	console.log("count2", mask, positions);
-	return countArrangementsByPositions(mask, positions, s.numbers, 0, 0);
+	return countArrangements3(s.unknowns.join(''), s.numbers, 0, 0, []);
 }
 
 // eslint-disable-next-line
 function count(s) {
 	let unknowns = s.unknowns.join('').split('.').filter(s => s !== "");
-	// console.log(s.unknowns.join(''), unknowns);
-	return countArrangements2(unknowns, s.numbers, 0, 0, []);
-	// return countArrangements(s.unknowns, s.numbers, 0, 0);
+	return countArrangements2(unknowns, s.numbers, 0, 0);
 }
 
 export class S12 extends Solver {
 	setup(input) {
-		// input = "???.### 1,1,3\n.??..??...?##. 1,1,3\n?#?#?#?#?#?#?#? 1,3,1,6\n????.#...#... 4,1,1\n????.######..#####. 1,6,5\n?###???????? 3,2,1";
-		input = input.split('\n').map(l => parseSprings(l));
+		let test = "???.### 1,1,3\n.??..??...?##. 1,1,3\n?#?#?#?#?#?#?#? 1,3,1,6\n????.#...#... 4,1,1\n????.######..#####. 1,6,5\n?###???????? 3,2,1";
+		test = test.split('\n').map(l => parseSprings(l));
+		console.log(21 === test.map(s => count(s)).sum() ? "Test passed" : "Test FAILED");
+		console.log(525152 === test.map(s => count(unfold(s))).sum() ? "Test passed" : "Test FAILED");
+		console.log(5 + 5 + 6 * 6 === countArrangements3("?????.#.?????", [1, 1, 1, 1, 1]) ? "Test passed" : "Test FAILED");
 
-		this.sol1 = input.map(s => countArrangements(s.unknowns, s.numbers, 0, 0)).reduce((a, b) => a + b);
+		input = input.split('\n').map(l => parseSprings(l));
+		this.sol1 = input.map(s => countArrangements(s.unknowns, s.numbers, 0, 0)).sum();
 		this.sol2 = 0;
 		this.remaining = input;
-		this.calc = [124, 233, 460, 467, 489/*, 562, 967*/];
+		while (this.remaining.length > 983) { this.remaining.pop(); }
+		this.calc = [124 /*124/*, 233, 460, 467/*, 489/*, 562, 967*/];
+		// console.log("#489", unfold(this.remaining[489]).unknowns.join(''), this.remaining[489].numbers);
 		// while (this.remaining.length > 35) { this.remaining.pop(); }
 		this.setState({ solution: `Total # of arrangements: ${this.sol1}\nExtended # of arrangements: ${this.sol2}` });
 	}
@@ -151,19 +197,31 @@ export class S12 extends Solver {
 			console.log("Terminated");
 			return { solution: `Total # of arrangements: ${this.sol1}\nExtended # of arrangements: ${this.sol2}` };
 		} else {
-			// let s = this.remaining.pop();
+			let s = this.remaining.pop();
+			/*
+			if (this.calc.length === 0) {
+				return {
+					solution:
+						`Total # of arrangements: ${this.sol1}\n\
+						Extended # of arrangements: ${this.sol2}`
+				}
+			}
 			let x = this.calc.pop();
 			let s = this.remaining[x];
-			console.log(s);
-			let n = count(unfold(s));
-			console.log("Calc", x, n);
-			this.sol2 += n;
+			*/
+			// console.log(s);
+			let u = unfold(s);
+			// let n = count(u);
+			// console.log("Calc", x, n);
+			let n2 = count2(u);
+			console.log("Calc2", this.remaining.length, n2);
+			this.sol2 += n2;
 			let next = this.remaining.length > 0 ? this.remaining[this.remaining.length - 1] : { unknowns: [""], numbers: [] }
 			this.setState({
 				solution:
 					`Total # of arrangements: ${this.sol1}\n\
 					Extended # of arrangements: ${this.sol2}\n\
-					Remaining: ${x}\n\
+					Remaining: ${this.remaining.length}\n\
 					Last: ${s.unknowns.join('')} [${s.numbers.join(',')}]\n\
 					Next: ${next.unknowns.join('')} [${next.numbers.join(',')}]`
 			});

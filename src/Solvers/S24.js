@@ -63,44 +63,41 @@ function validate(int, from, to) {
 	return true;
 }
 
-function willHit(input, x0, dtt, dtd) {
-	let t = ((x0 - input.x) / (input.dx - dtt / dtd));
-	return t >= 0 && t % 1 === 0;
+function willHit(input, x0, y0, z0, dxt, dyt, dzt, dt) {
+	let t = ((x0 - input.x) / (input.dx - dxt / dt));
+	return t >= 0 && t % 1 === 0 && y0 + t * dyt / dt === input.y + t * input.dy && z0 + t * dzt / dt === input.z + t * input.dz;
 }
 
-function findTrajectory(input, v, dv) {
-	input.sort((a, b) => Math.abs(b[dv]) - Math.abs(a[dv]));
-	if (v === "x") { console.log([...input]); }
-	for (let t1 = 0; t1 < 10; t1++) {
-		let x1 = input[0][v] + t1 * input[0][dv];
-		if (v === "x" && t1 === 5) { console.log("Examinging t=5", input[0], v, dv); }
-		if (v === "x" && t1 === 5) { console.log("Examinging t=5", x1, input[0][v], t1 * input[0][dv]); }
-		for (let t2 = 0; t2 < 10; t2++) {
-			let x2 = input[1][v] + t2 * input[1][dv];
-			let dtt = x2 - x1, dtd = t2 - t1;
-			let x0 = x1 - t1 * dtt / dtd;
-			if (v === "x" && t1 === 5 && t2 === 4) {
-				console.log("Examining t=4", x2);
-				console.log("Correct solution", x0, dtt / dtd);
-			}
-			if (x0 % 1 === 0 && input.slice(2).every(i => willHit(i, x0, dtt, dtd))) {
-				if (v === "x") {
-					console.log("Found solution", t1, t2, x0, dtt / dtd);
-					console.log(input.slice(2).map(i => ((x0 - i.x) / (i.dx - dtt / dtd))));
-				}
-				return x0;
+function maxTime(a, min, max) {
+	return Math.max(
+		a.dx > 0 ? (max - a.x) / a.dx : (min - a.x) / a.dx,
+		a.dy > 0 ? (max - a.y) / a.dy : (min - a.y) / a.dy,
+		a.dz > 0 ? (max - a.z) / a.dz : (min - a.z) / a.dz);
+}
+
+function findTrajectory(input, min, max) {
+	let maxT = maxTime(input[0], min, max);
+	console.log("Max time: ", maxT);
+	for (let t1 = 0; t1 <= maxT; t1++) {
+		let x1 = input[0].x + t1 * input[0].dx;
+		let y1 = input[0].y + t1 * input[0].dy;
+		let z1 = input[0].z + t1 * input[0].dz;
+		for (let t2 = 0; t2 <= maxT; t2++) {
+			let x2 = input[1].x + t2 * input[1].dx;
+			let y2 = input[1].y + t2 * input[1].dy;
+			let z2 = input[1].z + t2 * input[1].dz;
+			let dt = t2 - t1;
+			let dxt = x2 - x1;
+			let dyt = y2 - y1;
+			let dzt = z2 - z1;
+			let x0 = x1 - t1 * dxt / dt;
+			let y0 = y1 - t1 * dyt / dt;
+			let z0 = z1 - t1 * dzt / dt;
+			if (x0 % 1 === 0 && input.slice(2).every(i => willHit(i, x0, y0, z0, dxt, dyt, dzt, dt))) {
+				return { x: x0, y: y0, z: z0 };
 			}
 		}
 	}
-}
-
-function targetSolution(input) {
-	let sol = { x: 0, y: 0, z: 0 }
-	sol.x = findTrajectory(input, "x", "dx");
-	sol.y = findTrajectory(input, "y", "dy");
-	sol.z = findTrajectory(input, "z", "dz");
-	console.log(sol);
-	return sol;
 }
 
 export class S24 extends Solver {
@@ -109,13 +106,14 @@ export class S24 extends Solver {
 		test = Hailstone.listFromInput(test);
 		let test1 = intersections(test);
 		console.log(2 === test1.filter(i => validate(i, 7, 27)).length ? "Test passed" : "Test FAILED");
-		let test2 = targetSolution(test);
-		console.log(47 === test2.x + test2.y + test2.z);
+		let test2 = findTrajectory(test, 7, 27);
+		console.log(47 === test2.x + test2.y + test2.z ? "Test passed" : "Test FAILED");
 
 		input = Hailstone.listFromInput(input);
 		let int = intersections(input);
 		let sol1 = int.filter(i => validate(i, 200000000000000, 400000000000000)).length;
+		let sol2 = findTrajectory(input, 200000000000000, 400000000000000);
 
-		return { solution: `Number of intersections: ${sol1}` };
+		return { solution: `Number of intersections: ${sol1}\nLaunch coordinate sum: ${sol2.x + sol2.y + sol2.z}` };
 	}
 }
