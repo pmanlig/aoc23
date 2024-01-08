@@ -1,6 +1,39 @@
 // import React from 'react';
+import { Renderer, drawFilledRect } from '../util';
 import Solver from './Solvers';
 // import { SearchState, PixelMap } from '../util';
+
+const img_width = 800;
+const img_height = 600;
+
+class HailstoneRenderer extends Renderer {
+	constructor(input, min, max) {
+		super(() => "#000000", img_width, img_height, 1);
+		this.min = min;
+		this.max = max;
+		this.span = max - min;
+		this.data = input;
+	}
+
+	draw(ctx, [time]) {
+		drawFilledRect(ctx, 0, 0, img_width, img_height, "#000000");
+		const minX = Math.min(...this.data.map(h => h.x));
+		const maxX = Math.max(...this.data.map(h => h.x));
+		const minY = Math.min(...this.data.map(h => h.y));
+		const maxY = Math.max(...this.data.map(h => h.y));
+		const width = maxX - minX;
+		const height = maxY - minY;
+		const speedup = 10000000000;
+
+		const translateX = (x) => Math.floor(img_width * (x - minX) / width);
+		const translateY = (y) => Math.floor(img_height * (y - minY) / height);
+
+		drawFilledRect(ctx, translateX(this.min), translateY(this.min), translateX(this.max), translateY(this.max), "#3F3F3F");
+		this.data.forEach(h => {
+			this.drawPixel(ctx, translateX(h.x + speedup * time * h.dx), translateY(h.y + speedup * time * h.dy), "#FFFFFF");
+		});
+	}
+}
 
 class Hailstone {
 	constructor(x, y, z, dx, dy, dz) {
@@ -100,6 +133,16 @@ function findTrajectory(input, min, max) {
 	}
 }
 
+function findMaxTime(input, from, to) {
+	function maxT(a) {
+		return Math.min(
+			Math.abs(a.dx > 0 ? Math.floor((to - a.x) / a.dx) : Math.floor((from - a.x) / a.dx)),
+			Math.abs(a.dy > 0 ? Math.floor((to - a.y) / a.dy) : Math.floor((from - a.y) / a.dy)),
+			Math.abs(a.dz > 0 ? Math.floor((to - a.z) / a.dz) : Math.floor((from - a.z) / a.dz)));
+	}
+	console.log(input.map(i => maxT(i)).sort((a, b) => a - b));
+}
+
 export class S24 extends Solver {
 	solve(input) {
 		let test = "19, 13, 30 @ -2,  1, -2\n18, 19, 22 @ -1, -1, -2\n20, 25, 34 @ -2, -2, -4\n12, 31, 28 @ -1, -2, -1\n20, 19, 15 @  1, -5, -3";
@@ -112,8 +155,20 @@ export class S24 extends Solver {
 		input = Hailstone.listFromInput(input);
 		let int = intersections(input);
 		let sol1 = int.filter(i => validate(i, 200000000000000, 400000000000000)).length;
-		let sol2 = findTrajectory(input, 200000000000000, 400000000000000);
+		findMaxTime(input, 200000000000000, 400000000000000);
+		let sol2 = { x: 0, y: 0, z: 0 }; // findTrajectory(input, 200000000000000, 400000000000000);
 
-		return { solution: `Number of intersections: ${sol1}\nLaunch coordinate sum: ${sol2.x + sol2.y + sol2.z}` };
+		console.log("X velocity", Math.min(...input.map(h => h.dx)), Math.max(...input.map(h => h.dx)));
+		console.log("Y velocity", Math.min(...input.map(h => h.dy)), Math.max(...input.map(h => h.dy)));
+		console.log("Z velocity", Math.min(...input.map(h => h.dz)), Math.max(...input.map(h => h.dz)));
+
+		this.time = 0;
+		setInterval(() => this.setState({ bmp: [++this.time] }), 100);
+
+		return {
+			solution: `Number of intersections: ${sol1}\nLaunch coordinate sum: ${sol2.x + sol2.y + sol2.z}`,
+			bmp: [this.time],
+			renderer: new HailstoneRenderer(input, 200000000000000, 400000000000000)
+		};
 	}
 }

@@ -59,25 +59,6 @@ function findDisconnect({ components, connections }) {
 	return 0;
 }
 
-function findBypasses(connections) {
-	function expand(c) {
-		return connections.filter(x => x.a === c || x.b === c).map(x => x.a === c ? x.b : x.a);
-	}
-
-	function bypass(c) {
-		let nodes = expand(c.a).filter(x => x !== c.b);
-		let steps = 1;
-		while (steps-- > 0) {
-			nodes = nodes.flatMap(x => expand(x)).filter((x, i, a) => i === a.indexOf(x)).filter(x => x !== c.a);
-			if (nodes.some(x => x === c.b)) { return true; }
-		}
-		return false;
-	}
-
-	console.log(connections);
-	console.log("Non-bypassable", connections.filter(x => !bypass(x)));
-}
-
 function findPath(comp, group, cx) {
 	let shorts = { comp: 0 }
 	let paths = [[comp]];

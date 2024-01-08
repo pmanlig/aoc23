@@ -172,6 +172,12 @@ function count(s) {
 	return countArrangements2(unknowns, s.numbers, 0, 0);
 }
 
+function count3(s) {
+	let unknowns = s.unknowns.join('').split('.').filter(s => s !== "");
+	console.log(unknowns, s.numbers);
+	return 0;
+}
+
 export class S12 extends Solver {
 	setup(input) {
 		let test = "???.### 1,1,3\n.??..??...?##. 1,1,3\n?#?#?#?#?#?#?#? 1,3,1,6\n????.#...#... 4,1,1\n????.######..#####. 1,6,5\n?###???????? 3,2,1";
@@ -184,7 +190,7 @@ export class S12 extends Solver {
 		this.sol1 = input.map(s => countArrangements(s.unknowns, s.numbers, 0, 0)).sum();
 		this.sol2 = 0;
 		this.remaining = input;
-		while (this.remaining.length > 983) { this.remaining.pop(); }
+		// while (this.remaining.length > 983) { this.remaining.pop(); }
 		this.calc = [124 /*124/*, 233, 460, 467/*, 489/*, 562, 967*/];
 		// console.log("#489", unfold(this.remaining[489]).unknowns.join(''), this.remaining[489].numbers);
 		// while (this.remaining.length > 35) { this.remaining.pop(); }
@@ -197,8 +203,9 @@ export class S12 extends Solver {
 			console.log("Terminated");
 			return { solution: `Total # of arrangements: ${this.sol1}\nExtended # of arrangements: ${this.sol2}` };
 		} else {
-			let s = this.remaining.pop();
 			/*
+			let s = this.remaining.pop();
+			*/
 			if (this.calc.length === 0) {
 				return {
 					solution:
@@ -208,13 +215,12 @@ export class S12 extends Solver {
 			}
 			let x = this.calc.pop();
 			let s = this.remaining[x];
-			*/
 			// console.log(s);
 			let u = unfold(s);
 			// let n = count(u);
 			// console.log("Calc", x, n);
-			let n2 = count2(u);
-			console.log("Calc2", this.remaining.length, n2);
+			let n2 = count3(u);
+			// console.log("Calc2", this.remaining.length, n2);
 			this.sol2 += n2;
 			let next = this.remaining.length > 0 ? this.remaining[this.remaining.length - 1] : { unknowns: [""], numbers: [] }
 			this.setState({
